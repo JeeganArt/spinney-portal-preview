@@ -446,6 +446,9 @@ halfBuyer.addEventListener('click', () => { if (!activeRole) chooseRole('buyer')
 document.getElementById('closeBtn').addEventListener('click', closeLoginModal);
 overlay.addEventListener('click', (e) => { if (e.target === overlay) closeLoginModal(); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && overlay.classList.contains('open')) closeLoginModal(); });
+
+// Preview only: open the modal on load so it is visible when this page is opened directly. On the real site the account icon opens it.
+openLoginModal();
 </script>
 </body>
 </html>
