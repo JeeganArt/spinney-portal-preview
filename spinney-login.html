@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Spinney — Login</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --bg-artist: linear-gradient(155deg, #A3DBBB 0%, #6ab590 60%, #2a5a40 100%);
+    --bg-buyer:  linear-gradient(155deg, #6889b8 0%, #2B4B84 55%, #0F1D35 100%);
+    --dark-navy: #0F1D35;
+    --navy: #2B4B84;
+    --mint: #A3DBBB;
+    --warm-white: #F8F6F3;
+    --pearl: #E4E8EE;
+    --r-md: 14px;
+    --r-pill: 999px;
+    --r-xl: 28px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    color: #fff;
+    background: var(--warm-white);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    letter-spacing: -0.01em;
+  }
+
+  /* ===== OVERLAY ===== */
+  .login-overlay {
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(15, 29, 53, 0.5);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: none; place-items: center;
+  }
+  .login-overlay.open { display: grid; }
+
+  .modal-wrap {
+    position: relative; z-index: 10;
+    width: min(720px, 94vw); height: min(620px, 88vh);
+    opacity: 0; transform: translateY(20px) scale(0.96);
+  }
+  .modal {
+    position: relative; width: 100%; height: 100%;
+    border-radius: var(--r-xl);
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: 0 40px 80px -20px rgba(0,0,0,0.6);
+    overflow: hidden;
+  }
+  .close {
+    position: absolute; top: 18px; right: 18px;
+    width: 36px; height: 36px; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.3);
+    background: rgba(255,255,255,0.12);
+    backdrop-filter: blur(10px);
+    display: grid; place-items: center;
+    cursor: pointer; z-index: 50;
+    transition: background 200ms ease, transform 300ms ease;
+    color: #fff;
+  }
+  .close:hover { background: rgba(255,255,255,0.22); transform: rotate(90deg); }
+  .close svg { width: 12px; height: 12px; }
+
+  /* ===== AUTH LAYER ===== */
+  .auth-layer {
+    position: absolute; inset: 0; z-index: 1;
+    display: flex; pointer-events: none;
+  }
+  .auth-layer.active { pointer-events: auto; }
+  .auth-panel {
+    flex: 0 0 50%;
+    display: flex; flex-direction: column;
+    padding: 48px 48px 36px;
+    overflow-y: auto;
+    color: #fff;
+    position: relative;
+  }
+  .auth-panel > * { position: relative; z-index: 1; }
+
+  .auth-panel[data-panel="artist"] {
+    order: 2;
+    background: var(--bg-artist);
+    color: var(--dark-navy);
+  }
+  .auth-panel[data-panel="artist"] .h2,
+  .auth-panel[data-panel="artist"] .divider,
+  .auth-panel[data-panel="artist"] .foot,
+  .auth-panel[data-panel="artist"] .text-link,
+  .auth-panel[data-panel="artist"] .row { color: var(--dark-navy); }
+  .auth-panel[data-panel="artist"] .divider::before,
+  .auth-panel[data-panel="artist"] .divider::after { background: rgba(15,29,53,0.2); }
+  .auth-panel[data-panel="artist"] .input { background: rgba(15,29,53,0.08); border-color: rgba(15,29,53,0.2); }
+  .auth-panel[data-panel="artist"] .input:focus-within { background: rgba(15,29,53,0.12); border-color: var(--dark-navy); box-shadow: 0 0 0 4px rgba(15,29,53,0.1); }
+  .auth-panel[data-panel="artist"] .input input { color: var(--dark-navy); }
+  .auth-panel[data-panel="artist"] .input input::placeholder { color: rgba(15,29,53,0.5); }
+  .auth-panel[data-panel="artist"] .input .pw-toggle { color: rgba(15,29,53,0.6); }
+  .auth-panel[data-panel="artist"] .oauth { background: rgba(15,29,53,0.08); border-color: rgba(15,29,53,0.2); }
+  .auth-panel[data-panel="artist"] .oauth:hover { background: rgba(15,29,53,0.14); }
+  .auth-panel[data-panel="artist"] .btn { background: var(--dark-navy); color: var(--mint); }
+  .auth-panel[data-panel="artist"] .crumb { background: rgba(15,29,53,0.08); border-color: rgba(15,29,53,0.2); color: var(--dark-navy); }
+  .auth-panel[data-panel="artist"] .crumb:hover { background: rgba(15,29,53,0.14); }
+  .auth-panel[data-panel="artist"] .code-cell { background: rgba(15,29,53,0.08); border-color: rgba(15,29,53,0.2); color: var(--dark-navy); }
+  .auth-panel[data-panel="artist"] .code-cell:focus { border-color: var(--dark-navy); background: rgba(15,29,53,0.12); box-shadow: 0 0 0 4px rgba(15,29,53,0.1); }
+  .auth-panel[data-panel="artist"] .success-orb { background: var(--dark-navy); color: var(--mint); }
+
+  .auth-panel[data-panel="buyer"] {
+    order: 1;
+    background: var(--bg-buyer);
+  }
+
+  .auth-panel::after {
+    content: "";
+    position: absolute; inset: 0;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.16 0'/></filter><rect width='180' height='180' filter='url(%23n)'/></svg>");
+    opacity: 0.5; mix-blend-mode: overlay; pointer-events: none;
+  }
+
+  /* ===== SPLIT HALVES ===== */
+  .split {
+    position: absolute; inset: 0; z-index: 2;
+    display: flex;
+  }
+  .half {
+    position: relative; flex: 0 0 50%; overflow: hidden;
+    cursor: pointer; border: 0; color: #fff;
+    font-family: inherit; text-align: left; padding: 0;
+  }
+  .half[data-role="artist"] { background: var(--bg-artist); }
+  .half[data-role="artist"] .role-content { color: var(--dark-navy); }
+  .half[data-role="artist"] .role-kicker { color: var(--dark-navy); opacity: 0.7; }
+  .half[data-role="artist"] .role-cta { background: rgba(15,29,53,0.12); border-color: rgba(15,29,53,0.2); color: var(--dark-navy); }
+  .half[data-role="artist"]:hover .role-cta { background: rgba(15,29,53,0.18); }
+  .half[data-role="buyer"] { background: var(--bg-buyer); }
+
+  .half::before {
+    content: ""; position: absolute; inset: 0;
+    background: radial-gradient(120% 90% at 100% 0%, rgba(255,255,255,0.15), transparent 55%), radial-gradient(80% 60% at 0% 100%, rgba(0,0,0,0.25), transparent 60%);
+    pointer-events: none;
+  }
+  .half::after {
+    content: ""; position: absolute; inset: 0;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.16 0'/></filter><rect width='180' height='180' filter='url(%23n)'/></svg>");
+    opacity: 0.5; mix-blend-mode: overlay; pointer-events: none;
+  }
+
+  .role-content {
+    position: absolute; z-index: 1; top: 0; bottom: 0; width: 100%;
+    padding: 44px 36px; display: flex; flex-direction: column;
+  }
+  .role-bottom { margin-top: auto; }
+  .role-kicker { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.85; margin-bottom: 10px; font-weight: 500; }
+  .role-title { font-size: 38px; font-weight: 600; line-height: 1; letter-spacing: -0.035em; margin: 0 0 12px; }
+  .role-sub { font-size: 13.5px; line-height: 1.4; opacity: 0.85; margin: 0 0 20px; max-width: 220px; }
+  .role-cta {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 500; padding: 10px 16px;
+    border-radius: var(--r-pill); background: rgba(255,255,255,0.18);
+    border: 1px solid rgba(255,255,255,0.3); backdrop-filter: blur(10px);
+    transition: background 240ms ease; width: fit-content;
+  }
+  .role-cta svg { width: 14px; height: 14px; transition: transform 280ms cubic-bezier(0.2, 0.9, 0.25, 1); }
+  .half:hover .role-cta { background: rgba(255,255,255,0.28); }
+  .half:hover .role-cta svg { transform: translateX(4px); }
+
+  /* Auth form styles */
+  .stack-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+  .crumb {
+    width: 36px; height: 36px; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.12);
+    backdrop-filter: blur(10px); display: grid; place-items: center;
+    cursor: pointer; color: #fff; transition: background 220ms ease;
+  }
+  .crumb:hover { background: rgba(255,255,255,0.22); }
+  .crumb svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; }
+
+  .h2 { font-size: 32px; line-height: 1.05; letter-spacing: -0.03em; font-weight: 600; margin: 0 0 22px; }
+  .oauth-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+  .oauth {
+    height: 44px; border-radius: var(--r-pill);
+    border: 1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.10);
+    backdrop-filter: blur(10px); display: grid; place-items: center;
+    cursor: pointer; transition: background 220ms ease, transform 200ms ease; font-family: inherit;
+  }
+  .oauth:hover { background: rgba(255,255,255,0.18); }
+  .oauth:active { transform: scale(0.97); }
+  .oauth svg { width: 18px; height: 18px; }
+
+  .divider {
+    display: flex; align-items: center; gap: 12px;
+    color: rgba(255,255,255,0.7); font-size: 11px; letter-spacing: 0.14em;
+    margin: 6px 0 14px;
+  }
+  .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: rgba(255,255,255,0.18); }
+
+  .field { margin-bottom: 10px; }
+  .input {
+    position: relative; display: flex; align-items: center; height: 48px;
+    background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.25);
+    backdrop-filter: blur(10px); border-radius: var(--r-md);
+    transition: background 220ms ease, border-color 220ms ease;
+  }
+  .input:focus-within { background: rgba(255,255,255,0.18); border-color: #fff; box-shadow: 0 0 0 4px rgba(255,255,255,0.18); }
+  .input input {
+    flex: 1; height: 100%; background: transparent; border: 0; outline: none;
+    padding: 0 16px; font-family: inherit; font-size: 14px; color: #fff; letter-spacing: -0.01em;
+  }
+  .input input::placeholder { color: rgba(255,255,255,0.6); }
+  .input .pw-toggle {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: transparent; border: 0; cursor: pointer;
+    color: rgba(255,255,255,0.7); display: grid; place-items: center; margin-right: 4px;
+  }
+  .input .pw-toggle:hover { color: #fff; }
+  .input .pw-toggle svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+  .row { display: flex; align-items: center; justify-content: space-between; margin: 12px 0 18px; font-size: 13px; }
+  .text-link { color: #fff; background: 0; border: 0; padding: 0; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 500; }
+  .text-link:hover { opacity: 0.85; }
+
+  .btn {
+    width: 100%; height: 48px; border-radius: var(--r-pill);
+    background: #fff; color: var(--dark-navy); border: 0;
+    font-family: inherit; font-size: 15px; font-weight: 600; letter-spacing: -0.01em;
+    cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    transition: transform 220ms cubic-bezier(0.2, 0.9, 0.25, 1), filter 220ms ease, box-shadow 280ms ease;
+  }
+  .btn:hover { filter: brightness(0.95); box-shadow: 0 12px 32px -8px rgba(0,0,0,0.3); }
+  .btn:active { transform: scale(0.985); }
+
+  .foot { margin-top: auto; padding-top: 14px; text-align: center; font-size: 12px; color: rgba(255,255,255,0.6); }
+
+  .code-cells { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin: 8px 0 20px; }
+  .code-cell {
+    height: 56px; border-radius: var(--r-md);
+    border: 1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.10);
+    backdrop-filter: blur(10px); text-align: center;
+    font-family: inherit; font-size: 22px; font-weight: 500; color: #fff; outline: none;
+    transition: all 220ms ease;
+  }
+  .code-cell:focus { border-color: #fff; background: rgba(255,255,255,0.20); box-shadow: 0 0 0 4px rgba(255,255,255,0.20); transform: translateY(-2px); }
+
+  .success-wrap { text-align: center; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .success-orb {
+    width: 80px; height: 80px; border-radius: 50%; background: #fff;
+    display: grid; place-items: center; margin-bottom: 24px; color: var(--dark-navy);
+    box-shadow: 0 20px 60px -10px rgba(255,255,255,0.4);
+    transform: scale(0.4); opacity: 0;
+  }
+  .success-orb svg { width: 32px; height: 32px; stroke: currentColor; fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+
+  .screen { display: none; flex-direction: column; flex: 1; }
+  .screen.active { display: flex; }
+
+  @media (max-width: 600px) {
+    .split { flex-direction: column; }
+    .half { flex: 0 0 50%; }
+    .auth-layer { flex-direction: column; }
+    .auth-panel { flex: 0 0 100%; padding: 32px 24px 24px; }
+    .modal-wrap { width: 96vw; height: 92vh; }
+  }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/animejs@4.0.2/lib/anime.iife.min.js"></script>
+</head>
+<body>
+
+<!-- This overlay gets injected/opened by clicking the account icon -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="modal-wrap" id="modalWrap" role="dialog" aria-modal="true">
+    <div class="modal">
+      <button class="close" id="closeBtn" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+      </button>
+
+      <div class="auth-layer" id="authLayer">
+        <div class="auth-panel" data-panel="buyer" id="panelBuyer"></div>
+        <div class="auth-panel" data-panel="artist" id="panelArtist"></div>
+      </div>
+
+      <div class="split" id="split">
+        <button class="half" data-role="artist" type="button" id="halfArtist">
+          <div class="role-content"><div class="role-bottom">
+            <div class="role-kicker">For creators</div>
+            <h2 class="role-title">Artist<br/>or label</h2>
+            <p class="role-sub">Upload, release, get paid.</p>
+            <span class="role-cta">Continue <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg></span>
+          </div></div>
+        </button>
+        <button class="half" data-role="buyer" type="button" id="halfBuyer">
+          <div class="role-content"><div class="role-bottom">
+            <div class="role-kicker">For listeners</div>
+            <h2 class="role-title">Buyer<br/>or listener</h2>
+            <p class="role-sub">Discover and collect.</p>
+            <span class="role-cta">Continue <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg></span>
+          </div></div>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function buildPanel(role) {
+  return `
+    <div data-screen="auth" class="screen active">
+      <div class="stack-head">
+        <button class="crumb" data-action="back-role" aria-label="Back"><svg viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg></button>
+      </div>
+      <h2 class="h2">Welcome.</h2>
+      <div class="oauth-row">
+        <button class="oauth" aria-label="Google"><svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22 12.2c0-.7-.1-1.4-.2-2H12v3.9h5.6c-.2 1.3-1 2.4-2.1 3.1v2.6h3.4c2-1.8 3.1-4.5 3.1-7.6z"/><path fill="#34A853" d="M12 22c2.8 0 5.2-.9 6.9-2.5l-3.4-2.6c-.9.6-2.1 1-3.5 1-2.7 0-5-1.8-5.9-4.3H2.6v2.7C4.3 19.7 7.9 22 12 22z"/><path fill="#FBBC05" d="M6.1 13.6c-.2-.6-.4-1.3-.4-2s.1-1.4.4-2V6.9H2.6C1.9 8.4 1.5 10.1 1.5 12s.4 3.6 1.1 5.1l3.5-2.7z"/><path fill="#EA4335" d="M12 5.7c1.5 0 2.9.5 4 1.5l3-3C17.2 2.5 14.8 1.5 12 1.5 7.9 1.5 4.3 3.8 2.6 6.9l3.5 2.7c.9-2.5 3.2-4.3 5.9-4.3z"/></svg></button>
+        <button class="oauth" aria-label="Apple"><svg viewBox="0 0 24 24" fill="${role === 'artist' ? '#0F1D35' : '#fff'}"><path d="M16.4 1.6c0 1.1-.5 2.2-1.1 2.9-.7.9-1.9 1.5-3 1.5-.1-1.1.5-2.3 1.1-3 .7-.8 2-1.4 3-1.4zM20 17.6c-.5 1.2-.8 1.7-1.5 2.7-.9 1.4-2.3 3.2-3.9 3.2-1.5 0-1.9-1-3.9-1-2 0-2.4 1-3.9 1-1.7 0-3-1.6-3.9-3-2.6-3.9-2.9-8.5-1.3-11C2.7 8 4.5 7 6.2 7c1.7 0 2.7 1 4.1 1 1.3 0 2.1-1 4.1-1 1.4 0 2.9.8 4 2.1-3.6 2-3 7.1.6 8.5z"/></svg></button>
+        <button class="oauth" aria-label="Passkey"><svg viewBox="0 0 24 24" fill="none" stroke="${role === 'artist' ? '#0F1D35' : '#fff'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9" r="4"/><path d="M13 12l8 8-2 2-2-2-2 2-2-2"/></svg></button>
+      </div>
+      <div class="divider">OR</div>
+      <div class="field"><div class="input"><input type="email" placeholder="Email" autocomplete="email" /></div></div>
+      <div class="field"><div class="input">
+        <input type="password" placeholder="Password" id="pw-${role}" autocomplete="current-password" />
+        <button class="pw-toggle" type="button" data-pw-toggle="pw-${role}"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div></div>
+      <div class="row"><button class="text-link" data-action="forgot">Forgot password?</button></div>
+      <button class="btn" data-action="submit">Continue</button>
+      <div class="foot">New here? Just enter your email and a password.</div>
+    </div>
+    <div data-screen="forgot" class="screen">
+      <div class="stack-head"><button class="crumb" data-action="back-auth"><svg viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg></button></div>
+      <h2 class="h2">Reset password.</h2>
+      <p style="font-size:14px;margin:0 0 24px;line-height:1.5;opacity:0.78">We'll send you a link. It expires in 15 minutes.</p>
+      <div class="field"><div class="input"><input type="email" placeholder="Email" /></div></div>
+      <button class="btn" style="margin-top:18px" data-action="back-auth">Send reset link</button>
+    </div>
+    <div data-screen="code" class="screen">
+      <div class="stack-head"><button class="crumb" data-action="back-auth"><svg viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg></button></div>
+      <h2 class="h2">Enter the code.</h2>
+      <p style="font-size:14px;margin:0 0 18px;line-height:1.5;opacity:0.78">Sent to <span style="font-weight:500;opacity:1">you@studio.fm</span></p>
+      <div class="code-cells"><input class="code-cell" maxlength="1" inputmode="numeric" /><input class="code-cell" maxlength="1" inputmode="numeric" /><input class="code-cell" maxlength="1" inputmode="numeric" /><input class="code-cell" maxlength="1" inputmode="numeric" /><input class="code-cell" maxlength="1" inputmode="numeric" /><input class="code-cell" maxlength="1" inputmode="numeric" /></div>
+      <button class="btn" data-action="verify">Verify</button>
+      <div class="foot"><button class="text-link" style="color:rgba(255,255,255,0.5)">Resend in 0:42</button></div>
+    </div>
+    <div data-screen="success" class="screen">
+      <div class="success-wrap">
+        <div class="success-orb"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <h2 class="h2" style="margin-bottom: 10px">You're in.</h2>
+        <p style="font-size:14px;margin:0 0 28px;opacity:0.78">Loading your dashboard…</p>
+        <button class="btn" style="max-width:240px" data-action="reset">Continue</button>
+      </div>
+    </div>`;
+}
+
+const panelArtist = document.getElementById('panelArtist');
+const panelBuyer = document.getElementById('panelBuyer');
+const authLayer = document.getElementById('authLayer');
+const modalWrap = document.getElementById('modalWrap');
+const halfArtist = document.getElementById('halfArtist');
+const halfBuyer = document.getElementById('halfBuyer');
+const split = document.getElementById('split');
+const overlay = document.getElementById('loginOverlay');
+
+panelArtist.innerHTML = buildPanel('artist');
+panelBuyer.innerHTML = buildPanel('buyer');
+
+let activeRole = null;
+
+function showScreen(panel, name) {
+  panel.querySelectorAll('[data-screen]').forEach(s => {
+    if (s.dataset.screen === name) {
+      s.classList.add('active');
+      if (name === 'success') {
+        const orb = s.querySelector('.success-orb');
+        if (orb) {
+          const spring = anime.createSpring({ stiffness: 200, damping: 12, mass: 0.8 });
+          anime.animate(orb, { scale: [0.4, 1], opacity: [0, 1], ease: spring });
+        }
+      }
+    } else { s.classList.remove('active'); }
+  });
+  if (name === 'code') setTimeout(() => panel.querySelector('.code-cell')?.focus(), 200);
+}
+
+function chooseRole(r) {
+  activeRole = r;
+  const spring = anime.createSpring({ stiffness: 55, damping: 18, mass: 1.2 });
+  const panel = r === 'artist' ? panelArtist : panelBuyer;
+  showScreen(panel, 'auth');
+  authLayer.classList.add('active');
+  if (r === 'artist') {
+    anime.animate(halfBuyer, { translateX: ['0%', '100%'], ease: spring });
+  } else {
+    anime.animate(halfArtist, { translateX: ['0%', '-100%'], ease: spring });
+  }
+  split.style.pointerEvents = 'none';
+}
+
+function backToRole() {
+  const spring = anime.createSpring({ stiffness: 55, damping: 18, mass: 1.2 });
+  anime.animate(halfArtist, { translateX: '0%', ease: spring });
+  anime.animate(halfBuyer, { translateX: '0%', ease: spring });
+  setTimeout(() => {
+    split.style.pointerEvents = 'auto';
+    authLayer.classList.remove('active');
+    activeRole = null;
+  }, 700);
+}
+
+// Open login modal
+window.openLoginModal = function() {
+  overlay.classList.add('open');
+  backToRole();
+  anime.animate(modalWrap, { opacity: [0, 1], translateY: [20, 0], scale: [0.96, 1], duration: 500, ease: 'out(4)' });
+};
+
+// Close login modal
+function closeLoginModal() {
+  anime.animate(modalWrap, { opacity: [1, 0], translateY: [0, 16], scale: [1, 0.96], duration: 300, ease: 'in(3)',
+    onComplete: function() { overlay.classList.remove('open'); modalWrap.style.opacity = '0'; }
+  });
+}
+
+halfArtist.addEventListener('click', () => { if (!activeRole) chooseRole('artist'); });
+halfBuyer.addEventListener('click', () => { if (!activeRole) chooseRole('buyer'); });
+
+[panelArtist, panelBuyer].forEach(panel => {
+  panel.addEventListener('click', (e) => {
+    const pw = e.target.closest('[data-pw-toggle]');
+    if (pw) { const inp = document.getElementById(pw.dataset.pwToggle); if (inp) inp.type = inp.type === 'password' ? 'text' : 'password'; return; }
+    const action = e.target.closest('[data-action]')?.dataset.action;
+    if (!action) return;
+    e.preventDefault();
+    if (action === 'back-role') backToRole();
+    else if (action === 'back-auth') showScreen(panel, 'auth');
+    else if (action === 'forgot') showScreen(panel, 'forgot');
+    else if (action === 'submit') showScreen(panel, 'code');
+    else if (action === 'verify') showScreen(panel, 'success');
+    else if (action === 'reset') { backToRole(); setTimeout(closeLoginModal, 800); }
+  });
+  const cells = [...panel.querySelectorAll('.code-cell')];
+  cells.forEach((cell, i) => {
+    cell.addEventListener('input', (e) => { const v = e.target.value.replace(/[^0-9]/g, '').slice(-1); e.target.value = v; if (v && i < cells.length - 1) cells[i + 1].focus(); });
+    cell.addEventListener('keydown', (e) => { if (e.key === 'Backspace' && !e.target.value && i > 0) cells[i - 1].focus(); });
+  });
+});
+
+document.getElementById('closeBtn').addEventListener('click', closeLoginModal);
+overlay.addEventListener('click', (e) => { if (e.target === overlay) closeLoginModal(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && overlay.classList.contains('open')) closeLoginModal(); });
+</script>
+</body>
+</html>
